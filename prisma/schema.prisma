@@ -1,0 +1,152 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+enum Role{
+  client
+  freelancer
+}
+enum Pricing{
+  fixed
+  hourly
+}
+enum Status{
+  open
+  in_progress
+  completed
+  cancelled
+}
+enum Proposalstatus{
+  pending
+  accepted
+  rejected
+}
+enum Contractstatus{
+  active
+  completed
+  cancelled
+}
+enum Milestonestatus{
+  pending
+  submitted
+  approved
+  rejected
+}
+
+model User{
+  id String @id @default(uuid())
+  name String
+  email String @unique
+  password String
+  role Role
+  bio String
+  skills String[]
+  hourly_rate Decimal @db.Decimal(10,2)
+  profile_image String
+  created_at DateTime @default(now())
+  service Services[]
+  project Projects[]
+  proposals Proposals[]
+  clientcontracts Contracts[] @relation("Clientcontracts")
+  freelancercontracts Contracts[] @relation("Freelancercontracts")
+  clientreviews Reviews[] @relation("Client")
+  freelancerreview Reviews[] @relation("Freelancer")
+
+}
+model Services{
+  id String @id @default(uuid())
+  freelancer_id String
+  freelancer User @relation(fields: [freelancer_id], references: [id])
+  title String
+  description String
+  category String
+  pricing_type Pricing
+  price Decimal @db.Decimal(10,2)
+  delivery_days Int
+  rating Decimal @db.Decimal(2,1) @default(0.0)
+  total_reviews Int @default(0)
+  created_at DateTime @default(now())
+}
+
+model Projects{
+  id String @id @default(uuid())
+  client_id String
+  client User @relation(fields: [client_id], references: [id])
+  title String
+  description String
+  category String
+  budget_min Decimal @db.Decimal(10,2)
+  budget_max Decimal @db.Decimal(10,2)
+  deadline DateTime
+  status Status @default(open)
+  required_skills String[]
+  created_at DateTime
+  proposals Proposals[]
+  contract Contracts[]
+}
+
+model Proposals{
+  id String @id @default(uuid())
+  project_id String
+  project Projects @relation(fields: [project_id], references: [id])
+  freelancer_id String
+  freelancer User @relation(fields: [freelancer_id], references: [id])
+  cover_letter String
+  proposed_price Decimal @db.Decimal(10,2)
+  estimated_duration Int
+  status Proposalstatus @default(pending)
+  submitted_at DateTime @default(now())
+}
+
+model Contracts{
+  id String @id @default(uuid())
+  project_id String
+  project Projects @relation(fields: [project_id], references: [id])
+  freelancer_id String
+  freelancer User @relation("Freelancercontracts",fields: [freelancer_id],references: [id])
+  client_id String
+  client User @relation("Clientcontracts",fields: [client_id],references: [id])
+  total_amount Decimal @db.Decimal(10,2)
+  status Contractstatus @default(active)
+  started_at DateTime @default(now())
+  completed_at DateTime
+  milestones Milestones[]
+  review Reviews[]
+}
+
+model Milestones{
+  id String @id @default(uuid())
+  contract_id String
+  contract Contracts @relation(fields: [contract_id], references: [id])
+  title String
+  description String
+  amount Decimal @db.Decimal(10,2)
+  due_date DateTime
+  order_index Int
+  status Milestonestatus @default(pending)
+  submitted_at DateTime
+  approved_at DateTime
+}
+
+model Reviews{
+  id String @id @default(uuid())
+  contract_id String
+  contract Contracts @relation(fields: [contract_id],references: [id])
+  reviewer_id String
+  reviewer User @relation("Client",fields: [reviewer_id],references: [id])
+  reviewee_id String
+  reviewee User @relation("Freelancer",fields: [reviewee_id],references: [id])
+  rating Int
+  comment String
+  create DateTime @default(now())
+}
