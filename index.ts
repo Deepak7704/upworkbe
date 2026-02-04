@@ -1,7 +1,5 @@
 import express from "express";
-import jwt from "jsonwebtoken";
 import cors from "cors";
-import { signupHandler } from "./src/controller/authController";
 import routesHandler from "./src/server";
 
 const app = express();

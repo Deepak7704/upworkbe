@@ -86,10 +86,77 @@ router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
         })
     }
 });
-router.get('/',authMiddleware,async(req:AuthRequest,res:Response)=>{
-    const {category,minBudget,maxBudget,status,skills} = req.query;
-    const specificProject = await prisma.projects.findUnique
-    const response = await prisma.projects.findMany();
+router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
+    const { category, minBudget, maxBudget, status, required_skills } = req.query;
+    const where: any = {};
+    if (category) {
+        where.category = {
+            equals: category,
+            mode: "insensitive"
+        };
+    }
+    if (status) {
+        where.status = status;
+    }
+    if (minBudget) {
+        where.min_budget = {
+            gte: Number(minBudget),
+        };
+    }
+    if (maxBudget) {
+        where.max_budget = {
+            lte: Number(maxBudget)
+        };
+    }
+    if (required_skills) {
+        where.required_skills = {
+            hasSome: String(required_skills).split(",").map(s => s.trim()),
+        };
+    }
+    if (Object.keys(where).length === 0) {
+        where.status = "open";
+    }
+    try {
+        const projects = await prisma.projects.findMany({
+            where,
+            include: {
+                client: {
+                    select: { name: true }
+                },
+                _count: {
+                    select: { proposals: true }
+                },
+            },
+            orderBy: {
+                created_at: 'desc',
+            }
+        });
+        res.status(200).json({
+            success: true,
+            "data": projects.map((p) => ({
+                "id": p.id,
+                "clientId": p.client_id,
+                "clientName": p.client.name,
+                "title": p.title,
+                "description": p.description,
+                "category": p.category,
+                "budgetMin": p.budget_min,
+                "budgetMax": p.budget_max,
+                "deadline": p.deadline,
+                "status": p.status,
+                "requiredSkills": p.required_skills,
+                "createdAt": p.created_at,
+                "proposalCount": p._count.proposals
+            }))
+        })
+    } catch {
+        return res.status(400).json({
+            "success": false,
+            "data": null,
+            "error": "Failed to get projects"
+        })
+    }
+
 
 })
 export default router;
