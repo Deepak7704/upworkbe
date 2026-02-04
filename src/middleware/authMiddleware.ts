@@ -6,23 +6,31 @@ import type { NextFunction } from 'express';
 import type { Response } from 'express';
 
 export const authMiddleware = async (req: AuthRequest, res: Response, next: NextFunction) => {
-    const token = req.headers.authorization;
-    if (!token || token.startsWith('Bearer ')) {
-        return res.status(400).json({
+    try {
+        const token = req.headers.authorization;
+        if (!token || token.startsWith('Bearer ')) {
+            return res.status(400).json({
+                "success": false,
+                "data": null,
+                "error": "INVALID_REQUEST"
+            })
+        }
+        const validToken = token.split(" ")[1];
+        if (!validToken) {
+            return res.status(400).json({
+                "success": false,
+                "data": null,
+                "error": "INVALID_REQUEST"
+            })
+        }
+        const decoded = jwt.verify(validToken, process.env.JWT_SECRET!) as Jwt_Payload
+        req.user = decoded;
+        next();
+    } catch (error) {
+        return res.status(401).json({
             "success": false,
             "data": null,
-            "error": "INVALID_REQUEST"
+            "error": "UNAUTHORIZED"
         })
     }
-    const validToken = token.split(" ")[1];
-    if(!validToken) {
-        return res.status(400).json({
-            "success": false,
-            "data": null,
-            "error": "INVALID_REQUEST"
-        })
-    }
-    const decoded = jwt.verify(validToken,process.env.JWT_SECRET!) as Jwt_Payload
-    req.user = decoded;
-    next();
 }

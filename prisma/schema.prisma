@@ -90,7 +90,7 @@ model Projects{
   deadline DateTime
   status Status @default(open)
   required_skills String[]
-  created_at DateTime
+  created_at DateTime @default(now())
   proposals Proposals[]
   contract Contracts[]
 }
