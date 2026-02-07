@@ -243,5 +243,66 @@ router.post('/:projectId/proposals', authMiddleware, async (req: AuthRequest, re
         },
         "error": null
     })
+});
+router.get('/:projectId/proposals', authMiddleware, async (req: AuthRequest, res: Response) => {
+    //only clients are allowed to check the proposals for their project
+    if (req.user?.role === 'freelancer') {
+        return res.status(400).json({
+            "success": false,
+            "data": null,
+            "error": "UNAUTHORIZED"
+        })
+    }
+    //check if the project exists or not
+    const projectId = req.params.projectId as string;
+    const checkProject = await prisma.projects.findUnique({
+        where: {
+            id: projectId
+        }
+    });
+    if (!checkProject) {
+        return res.status(404).json({
+            "success": false,
+            "data": null,
+            "error": "PROJECT_NOT_FOUND"
+        })
+    }
+    // now check whether the existing user is the owner for the project or else return un authorized error
+    if (checkProject.client_id != req.user?.userId) {
+        return res.status(403).json({
+            "success": false,
+            "data": null,
+            "error": "FORBIDDEN"
+        })
+    }
+    //return the proposals to the client
+    const proposals = await prisma.proposals.findMany({
+        where: {
+            project_id: projectId
+        },include:{
+            freelancer:{
+                select:{
+                    name:true,
+                    skills:true
+                }
+            }
+        }
+    });
+    return res.status(200).json({
+        success: true,
+        data: proposals.map((p) => ({
+            id: p.id,
+            freelancerId: p.freelancer_id,
+            freelancerName: p.freelancer.name,
+            freelancerSkills: p.freelancer.skills,
+            coverLetter: p.cover_letter,
+            proposedPrice: p.proposed_price,
+            estimatedDuration: p.estimated_duration,
+            status: p.status,
+            submittedAt: p.submitted_at,
+        })),
+        error: null,
+    });
+
 })
 export default router;
