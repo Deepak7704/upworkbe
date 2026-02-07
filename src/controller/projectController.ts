@@ -3,8 +3,9 @@ import { Router } from "express";
 import express from "express";
 import type { Response } from "express";
 import { authMiddleware } from "../middleware/authMiddleware";
-import { projectSchema } from "../types/zod";
+import { projectSchema, coverletterSchema } from "../types/zod";
 import { prisma } from "../../lib/prisma";
+
 const router = express.Router();
 router.post('/', authMiddleware, async (req: AuthRequest, res: Response) => {
     const body = projectSchema.safeParse(req.body);
@@ -156,7 +157,91 @@ router.get('/', authMiddleware, async (req: AuthRequest, res: Response) => {
             "error": "Failed to get projects"
         })
     }
-
-
+});
+router.post('/:projectId/proposals', authMiddleware, async (req: AuthRequest, res: Response) => {
+    const body = coverletterSchema.safeParse(req.body);
+    if (!body.success) {
+        return res.status(400).json({
+            "success": false,
+            "data": null,
+            "error": "INVALID_REQUEST"
+        })
+    }
+    const { cover_letter, proposed_price, estimated_duration } = body.data
+    const projectId = req.params.projectId as string;
+    if (!projectId) {
+        return res.status(400).json({
+            "success": false,
+            "data": null,
+            "error": "INVALID_REQUEST"
+        })
+    }
+    if (req.user?.role === 'client') {
+        return res.status(403).json({
+            "success": false,
+            "data": null,
+            "error": "FORBIDDEN"
+        })
+    }
+    const isValidProject = await prisma.projects.findUnique({
+        where: {
+            id: projectId
+        },
+        select: {
+            status: true
+        }
+    });
+    if (!isValidProject) {
+        return res.status(404).json({
+            "success": false,
+            "data": null,
+            "error": "PROJECT_NOT_FOUND"
+        })
+    }
+    if (isValidProject.status != "open") {
+        return res.status(400).json({
+            "success": false,
+            "data": null,
+            "error": "PROJECT_NOT_OPEN"
+        })
+    }
+    //check if a proposal exists for the same project id 
+    const checkProposal = await prisma.proposals.findFirst({
+        where: {
+            project_id: projectId,
+            freelancer_id: req.user?.userId
+        }
+    });
+    if (checkProposal) {
+        return res.status(400).json({
+            "success": false,
+            "data": null,
+            "error": "PROPOSAL_ALREADY_EXISTS"
+        })
+    }
+    //create a proposal with the given details
+    const newProposal = await prisma.proposals.create({
+        data: {
+            project_id: projectId,
+            freelancer_id: req.user?.userId!,
+            cover_letter: cover_letter,
+            proposed_price: proposed_price,
+            estimated_duration: estimated_duration
+        }
+    });
+    return res.status(201).json({
+        "success": true,
+        "data": {
+            "id": newProposal.id,
+            "projectId": newProposal.project_id,
+            "freelancerId": newProposal.freelancer_id,
+            "coverLetter": newProposal.cover_letter,
+            "proposedPrice": newProposal.proposed_price,
+            "estimatedDuration": newProposal.estimated_duration,
+            "status": newProposal.status,
+            "submittedAt": newProposal.submitted_at
+        },
+        "error": null
+    })
 })
 export default router;

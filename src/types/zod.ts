@@ -29,3 +29,8 @@ export const projectSchema = z.object({
     deadline:z.date(),
     required_skills:z.array(z.string())
 });
+export const coverletterSchema = z.object({
+    cover_letter:z.string(),
+    proposed_price:z.number(),
+    estimated_duration:z.number()
+})
