@@ -1,4 +1,4 @@
-import z from "zod";
+import z, { any } from "zod";
 export const signupSchema = z.object({
     name:z.string(),
     email:z.string().email(),
@@ -33,4 +33,15 @@ export const coverletterSchema = z.object({
     cover_letter:z.string(),
     proposed_price:z.number(),
     estimated_duration:z.number()
+});
+export const proposalSchema = z.object({
+    milestones:z.array(z.object({
+        title:z.string(),
+        description:z.string().optional().default(""),
+        amount: z
+          .string()
+          .regex(/^\d{1,8}(\.\d{1,2})?$/, "Amount must be DECIMAL(10,2)")
+          .transform(Number),
+        dueDate:z.string().date()
+    })).min(1)
 })
